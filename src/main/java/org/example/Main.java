@@ -1,9 +1,21 @@
 package org.example;
 
-//TIP 코드를 <b>실행</b>하려면 <shortcut actionId="Run"/>을(를) 누르거나
-// 에디터 여백에 있는 <icon src="AllIcons.Actions.Execute"/> 아이콘을 클릭하세요.
+import org.example.mvc.view.FirstView;
+
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.printf("Hello welcome!");
+        try(Socket cliSocket = new Socket("172.30.67.203", 8888)) {
+            System.out.println("Connection successful");
+            FirstView fv = new FirstView();
+            fv.firstView();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
