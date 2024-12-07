@@ -9,7 +9,7 @@ import java.net.UnknownHostException;
 
 public class Main {
     public static void main(String[] args) {
-        try (Socket clientSocket = new Socket("172.30.67.203", 8888)) {
+        try (Socket clientSocket = new Socket("121.150.205.210", 8888)) {
             System.out.println("서버 연결 성공");
 
             // 버퍼 스트림으로 감싸서 성능 향상

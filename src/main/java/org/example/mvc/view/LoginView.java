@@ -55,13 +55,13 @@ public class LoginView {
             }
 
             // ID 검증 실패시 종료
-            if (response.getCode() != Protocol.CODE_SUCCESS) {
+            if (response.getCode() != Protocol.CODE_FAIL) {
                 System.out.println("ID 검증 실패");
                 return;
             }
 
             // 비밀번호 검증
-            LoginPacket pwdPacket = new LoginPacket(pwd, "pwd");
+            LoginPacket pwdPacket = new LoginPacket(id + "," + pwd, "pwd");
             System.out.println("전송할 Password 패킷: " + pwdPacket);
 
             packetData = pwdPacket.getPacket();
