@@ -1,6 +1,5 @@
 package org.example.mvc.view;
 
-
 import org.example.global.Protocol;
 import org.example.mvc.packet.LoginPacket;
 
@@ -10,72 +9,80 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Scanner;
 public class LoginView {
-    private Socket clientSocket = null;
+    private static final String SERVER_ADDRESS = "121.150.205.210"; // 서버 주소
+    private static final int SERVER_PORT = 8888; // 서버 포트
+
+    private Socket clientSocket;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
-    private Protocol protocol;
-    private LoginPacket idPacket;
-    private LoginPacket pwdPacket;
-    Scanner sc = new Scanner(System.in);
+    private final Scanner scanner;
+
+    public LoginView() {
+        this.scanner = new Scanner(System.in);
+    }
+
+    private void connectToServer() throws IOException {
+        try {
+            clientSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+            oos = new ObjectOutputStream(clientSocket.getOutputStream());
+            ois = new ObjectInputStream(clientSocket.getInputStream());
+        } catch (IOException e) {
+            throw new IOException("서버 연결 실패: " + e.getMessage());
+        }
+    }
 
     public void printSignIn() {
         try {
+            connectToServer(); // 서버 연결 먼저 수행
+
             System.out.println("=== 로그인 ===");
             System.out.print("아이디: ");
-            String id = sc.next();
+            String id = scanner.next();
             System.out.print("비밀번호: ");
-            String pwd = sc.next();
+            String pwd = scanner.next();
 
-            idPacket = new LoginPacket(id, "id");
-            System.out.println(idPacket.toString());
-            pwdPacket = new LoginPacket(pwd, "pwd");
-            System.out.println(pwdPacket.toString());
+            // ID 검증
+            LoginPacket idPacket = new LoginPacket(id, "id");
+            System.out.println("전송할 ID 패킷: " + idPacket);
+            oos.writeObject(idPacket.getPacket()); // getPacket()으로 바이트 배열 전송
+            oos.flush(); // 버퍼 비우기
 
-            // id 요청 전송
-            oos.writeObject(idPacket);
-            System.out.println("write?");
-            protocol = (LoginPacket) ois.readObject();
-
-            // pwd 요청 전송
-            oos.writeObject(pwdPacket);
-            protocol = (LoginPacket) ois.readObject();
-
-            if (protocol.getType() == Protocol.TYPE_RESPONSE &&
-                    protocol.getCode() == Protocol.CODE_SUCCESS) {
-                System.out.println("login success");
+            Protocol response = (Protocol) ois.readObject();
+            if (response.getCode() != Protocol.CODE_SUCCESS) {
+                System.out.println("ID 검증 실패");
+                return;
             }
-        } catch (Exception e) {
-            System.out.println("로그인 오류: " + e.getMessage());
+
+            // 비밀번호 검증
+            LoginPacket pwdPacket = new LoginPacket(pwd, "pwd");
+            System.out.println("전송할 Password 패킷: " + pwdPacket);
+            oos.writeObject(pwdPacket.getPacket());
+            oos.flush();
+
+            response = (Protocol) ois.readObject();
+            if (response.getType() == Protocol.TYPE_RESPONSE &&
+                    response.getCode() == Protocol.CODE_SUCCESS) {
+                System.out.println("로그인 성공!");
+            } else {
+                System.out.println("로그인 실패: 잘못된 비밀번호");
+            }
+
+        } catch (IOException e) {
+            System.out.println("통신 오류: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.out.println("프로토콜 오류: " + e.getMessage());
+        } finally {
+            closeConnection();
         }
     }
-//    public void printSignUp() {
-//        try {
-//            connectToServer();
-//            System.out.println("=== 회원가입 ===");
-//            System.out.print("아이디: ");
-//            String id = sc.next();
-//            System.out.print("비밀번호: ");
-//            String pwd = sc.next();
-//            // 회원가입 요청 전송
-//            protocol = new LoginMessage();
-//            protocol.setType(LoginMessage.SIGNUP_REQUEST);
-//            protocol.setId(id);
-//            protocol.setPwd(pwd);
-//            oos.writeObject(protocol);
-//            // 결과 수신
-//            protocol = (LoginMessage) ois.readObject();
-//            System.out.println(protocol.getMessage());
-//        } catch (Exception e) {
-//            System.out.println("회원가입 오류: " + e.getMessage());
-//        } finally {
-//            closeConnection();
-//        }
-//    }
 
     private void closeConnection() {
         try {
+            if (oos != null) {
+                oos.flush();
+                oos.close();
+            }
             if (ois != null) ois.close();
-            if (oos != null) oos.close();
             if (clientSocket != null) clientSocket.close();
         } catch (IOException e) {
             System.err.println("연결 종료 오류: " + e.getMessage());
