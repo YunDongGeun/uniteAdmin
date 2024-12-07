@@ -31,21 +31,26 @@ public class LoginView {
 
             // ID 전송
             LoginPacket idPacket = new LoginPacket(id, "id");
-            System.out.println(idPacket.toString());
+            System.out.println("전송할 ID 패킷: " + idPacket.toString());
             byte[] idData = idPacket.getPacket();
-            out.writeInt(idData.length);  // 먼저 데이터 길이 전송
-            out.write(idData);            // 실제 데이터 전송
+            out.writeInt(idData.length);
+            out.write(idData);
             out.flush();
 
             // 서버 응답 읽기
             int responseLength = in.readInt();
+            if (responseLength <= 0 || responseLength > Protocol.LEN_MAX) {
+                throw new IOException("잘못된 응답 길이: " + responseLength);
+            }
+            System.out.println("응답 길이: " + responseLength);
+
             byte[] responseData = new byte[responseLength];
             in.readFully(responseData);
-            Protocol response = new Protocol();  // 응답 처리 로직 필요
+            System.out.println("서버로부터 ID 응답 수신 완료");
 
             // PWD 전송
             LoginPacket pwdPacket = new LoginPacket(pwd, "pwd");
-            System.out.println(pwdPacket.toString());
+            System.out.println("전송할 PWD 패킷: " + pwdPacket.toString());
             byte[] pwdData = pwdPacket.getPacket();
             out.writeInt(pwdData.length);
             out.write(pwdData);
@@ -53,9 +58,18 @@ public class LoginView {
 
             // 서버 응답 읽기
             responseLength = in.readInt();
+            if (responseLength <= 0 || responseLength > Protocol.LEN_MAX) {
+                throw new IOException("잘못된 응답 길이: " + responseLength);
+            }
+            System.out.println("응답 길이: " + responseLength);
+
             responseData = new byte[responseLength];
             in.readFully(responseData);
-            response = new Protocol();  // 응답 처리 로직 필요
+            System.out.println("서버로부터 PWD 응답 수신 완료");
+
+            // 응답 처리
+            Protocol response = new Protocol();
+            // TODO: responseData를 Protocol 객체로 변환하는 로직 필요
 
             if (response.getType() == Protocol.TYPE_RESPONSE &&
                     response.getCode() == Protocol.CODE_SUCCESS) {
@@ -63,8 +77,11 @@ public class LoginView {
             } else {
                 System.out.println("로그인 실패");
             }
+        } catch (IOException e) {
+            System.out.println("통신 오류: " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e) {
-            System.out.println("로그인 오류: " + e.getMessage());
+            System.out.println("기타 오류: " + e.getMessage());
             e.printStackTrace();
         }
     }
