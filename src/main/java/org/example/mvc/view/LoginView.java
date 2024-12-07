@@ -7,15 +7,13 @@ import org.example.mvc.packet.LoginPacket;
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
+
 public class LoginView {
-    @Getter
-    private final Socket clientSocket;
     private final DataInputStream in;
     private final DataOutputStream out;
     private final Scanner scanner;
 
     public LoginView(Socket socket, DataInputStream in, DataOutputStream out) {
-        this.clientSocket = socket;
         this.in = in;
         this.out = out;
         this.scanner = new Scanner(System.in);
@@ -29,59 +27,74 @@ public class LoginView {
             System.out.print("비밀번호: ");
             String pwd = scanner.next();
 
-            // ID 전송
+            // ID 검증
             LoginPacket idPacket = new LoginPacket(id, "id");
-            System.out.println("전송할 ID 패킷: " + idPacket.toString());
-            byte[] idData = idPacket.getPacket();
-            out.writeInt(idData.length);
-            out.write(idData);
+            System.out.println("전송할 ID 패킷: " + idPacket);
+
+            // 패킷 전송
+            byte[] packetData = idPacket.getPacket();
+            for (int i = 0; i < packetData.length; i++) {
+                out.writeByte(packetData[i]);
+            }
             out.flush();
 
             // 서버 응답 읽기
-            int responseLength = in.readInt();
-            if (responseLength <= 0 || responseLength > Protocol.LEN_MAX) {
-                throw new IOException("잘못된 응답 길이: " + responseLength);
+            byte type = in.readByte();
+            byte code = in.readByte();
+            short length = in.readShort();
+
+            byte[] data = null;
+            if (length > 0) {
+                data = new byte[length];
+                in.readFully(data);
             }
-            System.out.println("응답 길이: " + responseLength);
 
-            byte[] responseData = new byte[responseLength];
-            in.readFully(responseData);
-            System.out.println("서버로부터 ID 응답 수신 완료");
+            Protocol response = new Protocol(type, code);
+            if (data != null) {
+                response.setData(data);
+            }
 
-            // PWD 전송
+            // ID 검증 실패시 종료
+            if (response.getCode() != Protocol.CODE_SUCCESS) {
+                System.out.println("ID 검증 실패");
+                return;
+            }
+
+            // 비밀번호 검증
             LoginPacket pwdPacket = new LoginPacket(pwd, "pwd");
-            System.out.println("전송할 PWD 패킷: " + pwdPacket.toString());
-            byte[] pwdData = pwdPacket.getPacket();
-            out.writeInt(pwdData.length);
-            out.write(pwdData);
+            System.out.println("전송할 Password 패킷: " + pwdPacket);
+
+            packetData = pwdPacket.getPacket();
+            for (int i = 0; i < packetData.length; i++) {
+                out.writeByte(packetData[i]);
+            }
             out.flush();
 
             // 서버 응답 읽기
-            responseLength = in.readInt();
-            if (responseLength <= 0 || responseLength > Protocol.LEN_MAX) {
-                throw new IOException("잘못된 응답 길이: " + responseLength);
+            type = in.readByte();
+            code = in.readByte();
+            length = in.readShort();
+
+            data = null;
+            if (length > 0) {
+                data = new byte[length];
+                in.readFully(data);
             }
-            System.out.println("응답 길이: " + responseLength);
 
-            responseData = new byte[responseLength];
-            in.readFully(responseData);
-            System.out.println("서버로부터 PWD 응답 수신 완료");
-
-            // 응답 처리
-            Protocol response = new Protocol();
-            // TODO: responseData를 Protocol 객체로 변환하는 로직 필요
+            response = new Protocol(type, code);
+            if (data != null) {
+                response.setData(data);
+            }
 
             if (response.getType() == Protocol.TYPE_RESPONSE &&
                     response.getCode() == Protocol.CODE_SUCCESS) {
-                System.out.println("로그인 성공");
+                System.out.println("로그인 성공!");
             } else {
-                System.out.println("로그인 실패");
+                System.out.println("로그인 실패: " + response.getDataAsString());
             }
-        } catch (IOException e) {
-            System.out.println("통신 오류: " + e.getMessage());
-            e.printStackTrace();
+
         } catch (Exception e) {
-            System.out.println("기타 오류: " + e.getMessage());
+            System.out.println("로그인 오류: " + e.getMessage());
             e.printStackTrace();
         }
     }
